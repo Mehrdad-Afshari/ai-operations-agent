@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal, TypedDict, cast
+from typing import Any, Literal, TypedDict, cast
 
 from langgraph.graph import END, START, StateGraph
 
@@ -46,10 +46,16 @@ def build_workflow(provider: AgentProvider | None = None) -> StateGraph[Workflow
         return {}
 
     graph: StateGraph[WorkflowState] = StateGraph(WorkflowState)
-    graph.add_node("decide", decide)
-    graph.add_node("apply_policy", apply_policy)
-    graph.add_node("execute_tool", execute)
-    graph.add_node("await_approval", await_approval)
+
+    # LangGraph 0.6.x currently infers the node input generic as Never under
+    # strict mypy for TypedDict state. Keep that third-party typing mismatch at
+    # this integration boundary while preserving typed state inside our nodes.
+    graph_api = cast(Any, graph)
+    graph_api.add_node("decide", decide)
+    graph_api.add_node("apply_policy", apply_policy)
+    graph_api.add_node("execute_tool", execute)
+    graph_api.add_node("await_approval", await_approval)
+
     graph.add_edge(START, "decide")
     graph.add_edge("decide", "apply_policy")
     graph.add_conditional_edges(
@@ -72,5 +78,8 @@ def run_workflow(
 ) -> WorkflowState:
     workflow = build_workflow(provider).compile()
     initial_state: WorkflowState = {"title": title, "description": description}
-    result = workflow.invoke(initial_state)
+
+    # The compiled Pregel stub exposes an unresolved StateT in LangGraph 0.6.x.
+    # Cast only the external invocation boundary; the public result stays typed.
+    result = cast(Any, workflow).invoke(initial_state)
     return cast(WorkflowState, result)
