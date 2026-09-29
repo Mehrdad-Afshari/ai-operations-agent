@@ -2,13 +2,28 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models import RequestStatus, RiskLevel
+from app.models import ApprovalOutcome, RequestStatus, RiskLevel
 
 
 class RequestCreate(BaseModel):
     title: str = Field(min_length=3, max_length=200)
     description: str = Field(min_length=10, max_length=5000)
     requester: str = Field(min_length=3, max_length=200)
+
+
+class ApprovalAction(BaseModel):
+    actor: str = Field(min_length=3, max_length=200)
+    reason: str = Field(min_length=3, max_length=2000)
+
+
+class ApprovalRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    outcome: ApprovalOutcome
+    actor: str
+    reason: str
+    created_at: datetime
 
 
 class AuditEventRead(BaseModel):
@@ -35,6 +50,7 @@ class RequestRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     events: list[AuditEventRead] = Field(default_factory=list)
+    approval: ApprovalRead | None = None
 
 
 class AgentDecision(BaseModel):
