@@ -19,14 +19,14 @@ class WorkflowState(TypedDict, total=False):
     tool_result: dict
 
 
-def build_workflow(provider: AgentProvider | None = None):
+def build_workflow(provider: AgentProvider | None = None) -> StateGraph:
     active_provider = provider or get_agent_provider()
 
-    def decide(state: WorkflowState) -> WorkflowState:
+    def decide(state: WorkflowState) -> dict:
         decision = active_provider.decide(state["title"], state["description"])
         return {"decision": decision.model_dump(mode="json")}
 
-    def apply_policy(state: WorkflowState) -> WorkflowState:
+    def apply_policy(state: WorkflowState) -> dict:
         decision = AgentDecision.model_validate(state["decision"])
         result = evaluate_policy(decision)
         return {
@@ -37,12 +37,12 @@ def build_workflow(provider: AgentProvider | None = None):
     def route_after_policy(state: WorkflowState) -> Literal["execute_tool", "await_approval"]:
         return "await_approval" if state["requires_approval"] else "execute_tool"
 
-    def execute(state: WorkflowState) -> WorkflowState:
+    def execute(state: WorkflowState) -> dict:
         decision = AgentDecision.model_validate(state["decision"])
         result = execute_tool(decision.proposed_tool, decision.tool_arguments)
         return {"tool_result": result}
 
-    def await_approval(_: WorkflowState) -> WorkflowState:
+    def await_approval(_: WorkflowState) -> dict:
         return {}
 
     graph = StateGraph(WorkflowState)
@@ -62,7 +62,7 @@ def build_workflow(provider: AgentProvider | None = None):
     )
     graph.add_edge("execute_tool", END)
     graph.add_edge("await_approval", END)
-    return graph.compile()
+    return graph
 
 
 def run_workflow(
@@ -70,6 +70,6 @@ def run_workflow(
     description: str,
     provider: AgentProvider | None = None,
 ) -> WorkflowState:
-    workflow = build_workflow(provider)
+    workflow = build_workflow(provider).compile()
     result = workflow.invoke({"title": title, "description": description})
     return WorkflowState(**result)
