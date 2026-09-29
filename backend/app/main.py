@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import Select, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.db import Base, engine, get_db
@@ -29,7 +29,7 @@ app = FastAPI(
 )
 
 
-def request_statement(request_id: str):
+def request_statement(request_id: str) -> Select[tuple[OperationRequest]]:
     return (
         select(OperationRequest)
         .where(OperationRequest.id == request_id)
@@ -41,7 +41,7 @@ def request_statement(request_id: str):
 
 
 def load_request(db: Session, request_id: str) -> OperationRequest:
-    request = db.scalar(request_statement(request_id))
+    request: OperationRequest | None = db.scalar(request_statement(request_id))
     if request is None:
         raise HTTPException(status_code=404, detail="Request not found")
     return request
