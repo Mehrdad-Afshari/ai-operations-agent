@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal, TypedDict
+from typing import Literal, TypedDict, cast
 
 from langgraph.graph import END, START, StateGraph
 
@@ -19,14 +19,14 @@ class WorkflowState(TypedDict, total=False):
     tool_result: dict
 
 
-def build_workflow(provider: AgentProvider | None = None) -> StateGraph:
+def build_workflow(provider: AgentProvider | None = None) -> StateGraph[WorkflowState]:
     active_provider = provider or get_agent_provider()
 
-    def decide(state: WorkflowState) -> dict:
+    def decide(state: WorkflowState) -> WorkflowState:
         decision = active_provider.decide(state["title"], state["description"])
         return {"decision": decision.model_dump(mode="json")}
 
-    def apply_policy(state: WorkflowState) -> dict:
+    def apply_policy(state: WorkflowState) -> WorkflowState:
         decision = AgentDecision.model_validate(state["decision"])
         result = evaluate_policy(decision)
         return {
@@ -37,15 +37,15 @@ def build_workflow(provider: AgentProvider | None = None) -> StateGraph:
     def route_after_policy(state: WorkflowState) -> Literal["execute_tool", "await_approval"]:
         return "await_approval" if state["requires_approval"] else "execute_tool"
 
-    def execute(state: WorkflowState) -> dict:
+    def execute(state: WorkflowState) -> WorkflowState:
         decision = AgentDecision.model_validate(state["decision"])
         result = execute_tool(decision.proposed_tool, decision.tool_arguments)
         return {"tool_result": result}
 
-    def await_approval(_: WorkflowState) -> dict:
+    def await_approval(_: WorkflowState) -> WorkflowState:
         return {}
 
-    graph = StateGraph(WorkflowState)
+    graph: StateGraph[WorkflowState] = StateGraph(WorkflowState)
     graph.add_node("decide", decide)
     graph.add_node("apply_policy", apply_policy)
     graph.add_node("execute_tool", execute)
@@ -71,5 +71,6 @@ def run_workflow(
     provider: AgentProvider | None = None,
 ) -> WorkflowState:
     workflow = build_workflow(provider).compile()
-    result = workflow.invoke({"title": title, "description": description})
-    return WorkflowState(**result)
+    initial_state: WorkflowState = {"title": title, "description": description}
+    result = workflow.invoke(initial_state)
+    return cast(WorkflowState, result)
