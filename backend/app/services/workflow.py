@@ -65,7 +65,11 @@ def build_workflow(provider: AgentProvider | None = None):
     return graph.compile()
 
 
-def run_workflow(title: str, description: str, provider: AgentProvider | None = None) -> WorkflowState:
+def run_workflow(
+    title: str,
+    description: str,
+    provider: AgentProvider | None = None,
+) -> WorkflowState:
     workflow = build_workflow(provider)
     result = workflow.invoke({"title": title, "description": description})
     return WorkflowState(**result)
