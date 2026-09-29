@@ -75,7 +75,8 @@ class OllamaAgentProvider(AgentProvider):
             except (httpx.HTTPError, KeyError, TypeError, ValidationError, ValueError) as exc:
                 last_error = exc
 
-        raise AgentProviderError("Agent provider failed to produce a valid decision") from last_error
+        message = "Agent provider failed to produce a valid decision"
+        raise AgentProviderError(message) from last_error
 
 
 def validate_decision(decision: AgentDecision) -> None:
