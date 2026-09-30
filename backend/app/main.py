@@ -34,7 +34,7 @@ app = FastAPI(
 app.add_middleware(CorrelationIdMiddleware)
 
 
-def request_statement(request_id: str) -> Select[tuple[OperationRequest]]:
+def request_statement(request_id: str) -> Select[OperationRequest]:
     return (
         select(OperationRequest)
         .where(OperationRequest.id == request_id)
@@ -46,7 +46,7 @@ def request_statement(request_id: str) -> Select[tuple[OperationRequest]]:
 
 
 def load_request(db: Session, request_id: str) -> OperationRequest:
-    request: OperationRequest | None = db.scalar(request_statement(request_id))
+    request = db.scalars(request_statement(request_id)).first()
     if request is None:
         raise HTTPException(status_code=404, detail="Request not found")
     return request
