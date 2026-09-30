@@ -32,3 +32,20 @@ jobs:
         run: docker compose config --quiet
       - name: Build backend image
         run: docker build --pull --tag ai-operations-agent:${{ github.sha }} ./backend
+
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/aws
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+      - name: Check Terraform formatting
+        run: terraform fmt -check -recursive
+      - name: Initialize Terraform without backend
+        run: terraform init -backend=false
+      - name: Validate Terraform
+        run: terraform validate
