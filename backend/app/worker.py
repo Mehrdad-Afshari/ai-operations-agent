@@ -9,8 +9,20 @@ celery_app = Celery(
     broker=settings.redis_url,
     backend=settings.redis_url,
 )
+celery_app.conf.update(
+    task_acks_late=True,
+    task_reject_on_worker_lost=True,
+    worker_prefetch_multiplier=1,
+    broker_connection_retry_on_startup=True,
+)
 
 
-@celery_app.task(name="process_operation_request")
+@celery_app.task(
+    name="process_operation_request",
+    autoretry_for=(ConnectionError, TimeoutError),
+    retry_backoff=True,
+    retry_jitter=True,
+    max_retries=3,
+)
 def process_operation_request(request_id: str) -> None:
     process_request(request_id)
