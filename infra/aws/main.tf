@@ -14,8 +14,14 @@ data "aws_availability_zones" "available" {
 }
 
 locals {
-  name = "${var.project_name}-${var.environment}"
-  azs  = slice(data.aws_availability_zones.available.names, 0, 2)
+  name        = "${var.project_name}-${var.environment}"
+  name_prefix = local.name
+  azs         = slice(data.aws_availability_zones.available.names, 0, 2)
+  common_tags = {
+    Project     = var.project_name
+    Environment = var.environment
+    ManagedBy   = "terraform"
+  }
 }
 
 resource "aws_vpc" "main" {
