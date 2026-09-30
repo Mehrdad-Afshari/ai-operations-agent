@@ -6,6 +6,13 @@ from app.schemas import AgentDecision
 from app.services.audit import record_event
 from app.services.workflow import run_workflow
 
+TERMINAL_OR_WAITING_STATUSES = {
+    RequestStatus.PENDING_APPROVAL,
+    RequestStatus.APPROVED,
+    RequestStatus.REJECTED,
+    RequestStatus.COMPLETED,
+}
+
 
 def process_request(request_id: str) -> None:
     db: Session = SessionLocal()
@@ -13,6 +20,11 @@ def process_request(request_id: str) -> None:
     try:
         request = db.get(OperationRequest, request_id)
         if request is None:
+            return
+
+        # Celery delivery is at-least-once. A retried/redelivered task must not
+        # repeat an already completed tool call or overwrite an approval state.
+        if request.status in TERMINAL_OR_WAITING_STATUSES:
             return
 
         request.status = RequestStatus.PROCESSING
