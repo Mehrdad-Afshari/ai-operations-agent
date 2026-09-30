@@ -63,13 +63,13 @@ resource "aws_ecs_task_definition" "api" {
   execution_role_arn       = aws_iam_role.ecs_execution.arn
 
   container_definitions = jsonencode([{
-    name      = "api"
-    image     = "${aws_ecr_repository.backend.repository_url}:${var.image_tag}"
-    essential = true
-    command   = ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    name         = "api"
+    image        = "${aws_ecr_repository.backend.repository_url}:${var.image_tag}"
+    essential    = true
+    command      = ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
     portMappings = [{ containerPort = 8000, hostPort = 8000, protocol = "tcp" }]
-    environment = local.runtime_environment
-    secrets     = local.runtime_secrets
+    environment  = local.runtime_environment
+    secrets      = local.runtime_secrets
     logConfiguration = {
       logDriver = "awslogs"
       options = {
@@ -90,10 +90,10 @@ resource "aws_ecs_task_definition" "worker" {
   execution_role_arn       = aws_iam_role.ecs_execution.arn
 
   container_definitions = jsonencode([{
-    name      = "worker"
-    image     = "${aws_ecr_repository.backend.repository_url}:${var.image_tag}"
-    essential = true
-    command   = ["celery", "-A", "app.worker.celery_app", "worker", "--loglevel=INFO"]
+    name        = "worker"
+    image       = "${aws_ecr_repository.backend.repository_url}:${var.image_tag}"
+    essential   = true
+    command     = ["celery", "-A", "app.worker.celery_app", "worker", "--loglevel=INFO"]
     environment = local.runtime_environment
     secrets     = local.runtime_secrets
     logConfiguration = {
