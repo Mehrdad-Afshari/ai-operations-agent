@@ -17,3 +17,18 @@ output "backend_ecr_repository_url" {
   description = "ECR repository URL for the backend image."
   value       = aws_ecr_repository.backend.repository_url
 }
+
+output "api_url" {
+  description = "HTTP endpoint of the portfolio API load balancer."
+  value       = "http://${aws_lb.api.dns_name}"
+}
+
+output "ecs_cluster_name" {
+  description = "ECS cluster used by the API and worker services."
+  value       = aws_ecs_cluster.main.name
+}
+
+output "database_endpoint" {
+  description = "Private RDS endpoint for operational diagnostics."
+  value       = aws_db_instance.postgres.address
+}
