@@ -3,17 +3,21 @@ from contextlib import asynccontextmanager
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, status
-from sqlalchemy import Select, select
+from sqlalchemy import Select, select, text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
 
 from app.db import Base, engine, get_db
 from app.models import ApprovalOutcome, OperationRequest
+from app.observability import CorrelationIdMiddleware, configure_logging
 from app.schemas import ApprovalAction, RequestCreate, RequestRead
 from app.services.approvals import ApprovalConflictError, ApprovalStateError, decide_request
 from app.services.audit import record_event
 from app.worker import process_operation_request
 
 DatabaseSession = Annotated[Session, Depends(get_db)]
+
+configure_logging()
 
 
 @asynccontextmanager
@@ -27,6 +31,7 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+app.add_middleware(CorrelationIdMiddleware)
 
 
 def request_statement(request_id: str) -> Select[tuple[OperationRequest]]:
@@ -50,6 +55,15 @@ def load_request(db: Session, request_id: str) -> OperationRequest:
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/ready")
+def readiness(db: DatabaseSession) -> dict[str, str]:
+    try:
+        db.execute(text("SELECT 1"))
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=503, detail="Database unavailable") from exc
+    return {"status": "ready", "database": "ok"}
 
 
 @app.post("/requests", response_model=RequestRead, status_code=status.HTTP_201_CREATED)
